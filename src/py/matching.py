@@ -13,7 +13,7 @@ import numpy as np
 class Matching:
     def __init__(self):
         pass
-        with open("cu_testing.cu", "r") as cuda_source_test:
+        with open("src/cuda/cu_testing.cu", "r") as cuda_source_test:
             src = cuda_source_test.read()
 
         self.mod = SourceModule(src)

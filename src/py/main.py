@@ -5,10 +5,6 @@ from rail import Rail
 import os
 from xml_loader import *
 from matching import Matching
-import pycuda.gpuarray as gpuarray
-import pycuda.driver as cuda
-import pycuda.autoinit
-from pycuda.compiler import SourceModule
 from time import time
 import numpy as np
 from os import walk
