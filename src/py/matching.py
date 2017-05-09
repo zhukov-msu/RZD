@@ -13,7 +13,7 @@ import numpy as np
 class Matching:
     def __init__(self):
         pass
-        with open("src/cuda/cu_testing.cu", "r") as cuda_source_test:
+        with open("../cuda/cu_testing.cu", "r") as cuda_source_test:
             src = cuda_source_test.read()
 
         self.mod = SourceModule(src)
@@ -87,7 +87,7 @@ class Matching:
         first_self = Matching.get_self(thread1,ch_num, exp)
         second_self = Matching.get_self(thread2,ch_num, exp)
 
-        start = time()
+        # start = time()
         for i, point1 in enumerate(thread1.points):
             ch1 = ch_num in point1.channels
             for j, point2 in enumerate(thread2.points):
@@ -100,11 +100,16 @@ class Matching:
                     table[i][j] = second_self[j]
                 elif ch1 and not ch2:
                     table[i][j] = first_self[i]
-        print (time() - start)
+        # print (time() - start)
         return table
 
-    def gpu_match(self, X):
-
+    def gpu_match(self, X, distance=True):
+        '''
+        
+        :param X: distance matrix
+        :param distance: True if return distance metric, False if matching indices
+        :return: 
+        '''
         MAXINT = 2147483647
         m, n = X.shape
         D = np.zeros((m + 1, n + 1))
@@ -128,23 +133,35 @@ class Matching:
         i = np.argmin(D[1:, n])
         res = D[1:, n][i]
         path = np.array([[i], [j]])
+        path1 = []
+        links = []
         while j > 1 and i > 1:
             tb = phi[i, j - 1]
             if tb == 1:
+                # print(1)
                 i -= 1
                 j -= 1
             elif tb == 2:
+                # print(2, [i,j])
+                links += [(i,j-1)]
                 i -= 1
             elif tb == 3:
+                # print(3, [i,j])
+                links += [(i,j-1)]
                 j -= 1
             else:
                 print(i, j)
                 raise Exception("wtf?")
 
-            path = np.insert(path, 0, [i, j], axis=1)
+            path = np.insert(path, 0, [i, j-1], axis=1)
+            path1 += [(i, j-1)]
 
         D = D[1:(m + 1), 1:(n + 1)]
-        return path
+        # return path if not distance else sum([D[x] for x in links])/np.sum(D)
+        try:
+            return path if not distance else sum([D[x] for x in links]) / np.sum([D[idx] for idx in path1])
+        except:
+            return 0
 
     @staticmethod
     def dtw_locglob_diss(X, pnt):
@@ -162,7 +179,7 @@ class Matching:
                 tb = np.argmin(tmp)
                 dmin = tmp[tb]
                 D[i + 1, j + 1] = D[i + 1, j + 1] + dmin
-                phi[i, j] = tb+1
+                phi[i, j] = tb + 1
         print (time()-start)
         j = n
         i = np.argmin(D[1:, n])
@@ -185,9 +202,3 @@ class Matching:
             path = np.insert(path, 0, [i, j], axis=1)
 
         D = D[1:(m + 1), 1:(n + 1)]
-
-
-
-
-
-

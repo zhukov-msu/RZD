@@ -5,6 +5,8 @@ from collections import defaultdict
 from datetime import datetime
 import math
 import sys
+from copy import copy
+from src.py.xml_loader import xml_dump
 
 
 class Path:
@@ -24,7 +26,7 @@ class Point:
 
     def __init__(self, coord=None, channels=None, note=None, back_motion=None):
 
-        self.channels = {}
+        self.channels = defaultdict(Channel)
         self.coord = coord
         self.note = note
         self.back_motion = back_motion
@@ -56,7 +58,7 @@ class Channel:
         return False
 
 class Rail:
-
+    global_counter = 0
     def __init__(self, _right=True, _move_dir=True):
         self.right = _right
         self.move_dir = _move_dir
@@ -179,20 +181,32 @@ class Rail:
 
         return s_rail
 
-    def mark_rail(self):
-        start = 0
+    def mark_rail(self, min_amplitude = 0):
+        start = -1
+        list_parts = []
         cnt_points = 0
         cnt_dashes = 0
         for i, point in enumerate(self.points):
+            if 3 in point.channels:
+                point.channels[2].signals = [sig for sig in point.channels[3].signals]
+                del point.channels[3].signals[:]
             for ch in point.channels:
-                if ch == 1:
-                    for sig_num, sig in enumerate(point.channels[ch].signals):
-                        if (sig[0] >= 12 and sig[0] <= 15 and sig[1] >= 177 and sig[1] <= 181) or \
-                                (sig[0] >= 4 and sig[0] <= 16 and sig[1] >= 79 and sig[1] <= 83):
-                            del point.channels[ch].signals[sig_num]
+                if ch in [0, 1, 6, 7]:
+                    # print([1point for point in point.channels[ch].signals])
+                    del point.channels[ch].signals[:]
 
+                # test = [sig for sig in point.channels[ch].signals if sig[0] > 6]
+                point.channels[ch].signals = [sig for sig in point.channels[ch].signals if sig[0] > min_amplitude]
+                # for sig_num, sig in enumerate(sigs):
+                #     if sig[0] < 7:
+                #         del sig #point.channels[ch].signals[sig_num]
+
+                        # if (sig[0] >= 12 and sig[0] <= 15 and sig[1] >= 177 and sig[1] <= 181) or \
+                                # (sig[0] >= 4 and sig[0] <= 16 and sig[1] >= 79 and sig[1] <= 83):
+                    #     del point.channels[ch].signals[sig_num]
             if len(point.channels) == 0:
                 cnt_dashes += 1
+
             else:
                 cnt_empty_channels = 0
                 for ch in point.channels:
@@ -206,17 +220,22 @@ class Rail:
                         cnt_empty_channels += 1
                 if cnt_empty_channels == len(point.channels):
                     cnt_dashes += 1
-            if cnt_dashes == 7 and start > 0:
-                if cnt_points >= 3:
+            if cnt_dashes == 7 and start >= 0:
+                if cnt_points >= 5:
                     self.points[start].note = 'es'
-                    self.points[i-cnt_dashes].note = 'ee'
+                    self.points[i].note = 'ee'
+                    rail_to_dump = copy(self)
+                    rail_to_dump.points = rail_to_dump.points[start: i+1]
+                    list_parts += [Path(move_dir=self.move_dir, rails=[rail_to_dump], date='123', dir_code='123')]
+                    self.global_counter += 1
                 cnt_dashes = 0
                 cnt_points = 0
-                start = 0
+                start = -1
+        return list_parts
 
 
     def closest_mat(self):  # TODO: changed range 0 -> 1
-        max_value = max(self.num_to_mm)
+        max_value = int(max(self.num_to_mm))
         mat = [0] * max_value
         # print (mat)
         if self.move_dir:

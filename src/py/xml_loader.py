@@ -5,7 +5,7 @@ from coord import *
 import codecs
 
 def load(os_path, skip_back_motion=True):
-    print(os_path)
+    # print(os_path)
     parser = ET.XMLParser(encoding="cp1251")
     with codecs.open(os_path, 'r',encoding='cp1251') as f:
         tree = ET.parse(os_path, parser=parser)
@@ -56,8 +56,8 @@ def xml_dump(path, os_path):
 
         xml_notes = ET.SubElement(tree_rail, 'Notes')
         for note in notes:
-            xml_note = ET.SubElement(xml_notes, 'Note', comment=note[1], x=note[0])
+            xml_note = ET.SubElement(xml_notes, 'Note', comment=str(note[1]), x=str(note[0]))
     tree = ET.ElementTree(root)
-    tree.write(os_path)
+    tree.write(os_path, encoding='utf-8')
 
 
