@@ -12,7 +12,7 @@ class Classifier:
     def __init__(self, obj_path):
         self.obj_path = obj_path
         self.file_list = [obj_path + '/' + name for name in os.listdir(obj_path)]
-        self.matching = Matching()
+        self.matching = Matching(5)
 
     @staticmethod
     def preprocess_object(obj: Rail):
@@ -26,11 +26,11 @@ class Classifier:
                     point.channels.pop(ch, None)
         return obj
 
-    def calculate_matrix(self, precomputed=None):
+    def calculate_matrix(self, precomputed=None, dump=False):
         start = time()
         self.obj_list = [load(fname) for fname in self.file_list]
         y = [1 if name.endswith('.def') else -1 for name in self.file_list]
-        print(type(self.obj_list[0]))
+        # print(type(self.obj_list[0]))
         self.obj_list = [self.preprocess_object(obj.rails[0]) for obj in self.obj_list]
         N = len(self.obj_list)
         xtx = np.zeros((N, N))
@@ -41,29 +41,34 @@ class Classifier:
         else:
             dist_matr = [[0 for i in range(N)] for j in range(N)]
         total = time()
+        start = time()
         for i in range(N):
-            start = time()
             for j in range(N):
                 # print(i, j)
                 if i <= j:
                     if not precomputed:
                         dist_matr[i][j] = self.matching.get_distance_table(self.obj_list[i], self.obj_list[j], 2, 5)
                         dist_matr[j][i] = dist_matr[i][j]
-                    else:
-                        xtx[i, j] = self.matching.gpu_match(dist_matr[i][j], distance=True)
-                        xtx[j, i] = xtx[i, j]
-
-            print(time() - start)
+                    # else:
+                    xtx[i, j] = self.matching.gpu_match(dist_matr[i][j], distance=True)
+                    xtx[j, i] = xtx[i, j]
+            if i % 10 == 0:
+                print(i, time() - start)
+                start = time()
+            # break  # TODO убрать!!!!
         print(time() - total)
-        if not precomputed:
+        if not precomputed and dump:
             with open('tmp_data/datatest.pkl', 'wb') as f:
                 pickle.dump(obj=dist_matr, file=f)
-        with open('tmp_data/xtx2.pkl', 'wb') as f:
-            pickle.dump(obj=xtx, file=f)
+        if dump:
+            with open('tmp_data/xtx1_reindex.pkl', 'wb') as f:
+                pickle.dump(obj=xtx, file=f)
+        return xtx
 
 
     def featureless_SVM(self):
         pass
 
-cl = Classifier('D:/CMC_MSU/master/science/data/train_data_merge')
-cl.calculate_matrix(precomputed='tmp_data/test.pkl')
+if __name__ == '__main__':
+    cl = Classifier('D:/CMC_MSU/master/science/data/train_data_merge')
+    cl.calculate_matrix(dump=True)#(precomputed='tmp_data/test.pkl')

@@ -11,45 +11,44 @@ import pycuda.autoinit
 import numpy as np
 
 class Matching:
-    def __init__(self):
+    def __init__(self, sigma):
         pass
         with open("../cuda/cu_testing.cu", "r") as cuda_source_test:
             src = cuda_source_test.read()
 
         self.mod = SourceModule(src)
         self.cuda_func = self.mod.get_function("matching")
+        self.exp = self.get_exp_table(256, 256, sigma)
 
-    @staticmethod
-    def signal_distance(ch1, ch2, exp, first, second):
+    def signal_distance(self, ch1, ch2, first, second):
         if ch1 and ch2:
-            res = math.sqrt(first + second - 2 * Matching.d_calc(ch1, ch2, exp))
+            res = math.sqrt(first + second - 2 * self.d_calc(ch1, ch2))
             return res
         else:
             return -1
 
-    @staticmethod
-    def d_calc(ch1, ch2, exp):
+    def d_calc(self, ch1, ch2):
         n1 = len(ch1.signals)
         n2 = len(ch2.signals)
         s = 0
         for i in range(n1):
             for j in range(n2):
                 s += ch1.signals[i][0] * ch2.signals[j][0] * \
-                    exp[ch1.signals[i][1]][ch2.signals[j][1]]
+                    self.exp[ch1.signals[i][1]][ch2.signals[j][1]]
         return s
 
-    @staticmethod
-    def d_calc_same(ch1, exp):
+    # @staticmethod
+    def d_calc_same(self, ch1):
         n1 = len(ch1.signals)
         s = 0
         for i in range(n1):
             for j in range(n1): # где то ошибки в неточных значениях
                 if i == j:
                     s += ch1.signals[i][0] * ch1.signals[j][0] * \
-                         exp[ch1.signals[i][1]][ch1.signals[j][1]]
+                         self.exp[ch1.signals[i][1]][ch1.signals[j][1]]
                 else:
                     s += 2 * ch1.signals[i][0] * ch1.signals[j][0] * \
-                         exp[ch1.signals[i][1]][ch1.signals[j][1]]
+                         self.exp[ch1.signals[i][1]][ch1.signals[j][1]]
         return s
 
     @staticmethod
@@ -61,31 +60,29 @@ class Matching:
         return exp
 
 
-    @staticmethod
-    def get_self(thread, ch_num, exp):
+    def get_self(self, thread, ch_num):
         assert isinstance(thread, Rail)
         t_count = len(thread.points)
         my_self = []
         for i in range(t_count):
             if ch_num in thread.points[i].channels.keys():
-                my_self += [Matching.d_calc_same(thread.points[i].channels[ch_num], exp)]
+                my_self += [self.d_calc_same(thread.points[i].channels[ch_num])]
             else:
                 my_self += [0]
 
         return my_self
 
-    @staticmethod
-    def get_distance_table(thread1, thread2, ch_num, sigma):
+    def get_distance_table(self, thread1, thread2, ch_num, sigma):
         p1 = len(thread1.points)
         p2 = len(thread2.points)
 
         table = np.zeros((p1, p2))
 
         dim1 = 256
-        exp = Matching.get_exp_table(dim1, dim1, sigma)
 
-        first_self = Matching.get_self(thread1,ch_num, exp)
-        second_self = Matching.get_self(thread2,ch_num, exp)
+
+        first_self = self.get_self(thread1,ch_num)
+        second_self = self.get_self(thread2,ch_num)
 
         # start = time()
         for i, point1 in enumerate(thread1.points):
@@ -93,8 +90,7 @@ class Matching:
             for j, point2 in enumerate(thread2.points):
                 ch2 = ch_num in point2.channels
                 if ch1 and ch2:
-                    table[i][j] = Matching.signal_distance(point1.channels[ch_num], point2.channels[ch_num],
-                                                          exp, first_self[i], second_self[j])
+                    table[i][j] = self.signal_distance(point1.channels[ch_num], point2.channels[ch_num], first_self[i], second_self[j])
 
                 elif not ch1 and ch2:
                     table[i][j] = second_self[j]
@@ -157,11 +153,11 @@ class Matching:
             path1 += [(i, j-1)]
 
         D = D[1:(m + 1), 1:(n + 1)]
-        # return path if not distance else sum([D[x] for x in links])/np.sum(D)
-        try:
-            return path if not distance else sum([D[x] for x in links]) / np.sum([D[idx] for idx in path1])
-        except:
-            return 0
+        return path if not distance else sum([D[x] for x in links])/np.sum(D)
+        # try:
+        #     return path if not distance else sum([D[x] for x in links]) / np.sum([D[idx] for idx in path1])
+        # except:
+        #     return 0
 
     @staticmethod
     def dtw_locglob_diss(X, pnt):
