@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
-
+from __future__ import division
 import math
-import numpy as np
 from rail import *
 from time import time
 import pycuda.gpuarray as gpuarray
@@ -9,6 +8,7 @@ import pycuda.driver as cuda
 from pycuda.compiler import SourceModule
 import pycuda.autoinit
 import numpy as np
+
 
 class Matching:
     def __init__(self, sigma):
@@ -75,6 +75,9 @@ class Matching:
     def get_distance_table(self, thread1, thread2, ch_num, sigma):
         p1 = len(thread1.points)
         p2 = len(thread2.points)
+        if p1 > p2:
+            thread1, thread2 = thread2, thread1
+            p1, p2 = p2, p1
 
         table = np.zeros((p1, p2))
 
@@ -124,6 +127,8 @@ class Matching:
             n_threads = max_block_size
         self.cuda_func(a_gpu, phi_gpu, np.int32(m), np.int32(n), block=(n_threads, 1, 1))
         D = a_gpu.get()
+        if distance:
+            return D[m,n]
         phi = phi_gpu.get()
         j = n
         i = np.argmin(D[1:, n])
@@ -153,11 +158,11 @@ class Matching:
             path1 += [(i, j-1)]
 
         D = D[1:(m + 1), 1:(n + 1)]
-        return path if not distance else sum([D[x] for x in links])/np.sum(D)
-        # try:
-        #     return path if not distance else sum([D[x] for x in links]) / np.sum([D[idx] for idx in path1])
-        # except:
-        #     return 0
+        # return path if not distance else float(sum([D[x] for x in links]))/float(np.sum(D))
+        try:
+            return path if not distance else 1 - (2*float(len(links)) / sum(D.shape))
+        except:
+            return 0
 
     @staticmethod
     def dtw_locglob_diss(X, pnt):

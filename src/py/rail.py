@@ -1,12 +1,11 @@
 # -*- coding: utf-8 -*-
-
+from __future__ import division, print_function, unicode_literals, absolute_import
 from coord import Coord
 from collections import defaultdict
 from datetime import datetime
 import math
 import sys
 from copy import copy
-from src.py.xml_loader import xml_dump
 
 
 class Path:
@@ -297,8 +296,3 @@ class Rail:
             else:
                 break  # TODO: wtf???
         return idx_min
-
-
-
-
-

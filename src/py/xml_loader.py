@@ -1,4 +1,4 @@
-
+from __future__ import division, print_function, unicode_literals, absolute_import
 import xml.etree.cElementTree as ET
 from rail import *
 from coord import *
@@ -59,5 +59,4 @@ def xml_dump(path, os_path):
             xml_note = ET.SubElement(xml_notes, 'Note', comment=str(note[1]), x=str(note[0]))
     tree = ET.ElementTree(root)
     tree.write(os_path, encoding='utf-8')
-
 
